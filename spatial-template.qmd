@@ -47,13 +47,17 @@ Use `View(ca_counties)` to check out what it contains. Let's simplify it by firs
 All `tidyverse` and `dplyr` functions work the same as before!
 
 ```{r}
-ca_counties_sf <- ca_counties_raw_sf |> 
+ca_counties_sf <- ca_counties_raw_sf %>% 
+  janitor::clean_names() %>% 
+  mutate(land_km2 = aland/1e6) %>% 
+  select(county=name,land_km2)
 ```
 
 What if we wanted just the dataframe, without the geometry? Convert to dataframe and select out the geometry column:
 
 ```{r}
-ca_counties_df <- ca_counties_sf |> 
+ca_counties_df <- ca_counties_sf |> as.data.frame() %>% 
+  select(-geometry)
 ```
 
 ## Check and set the CRS
@@ -68,6 +72,14 @@ ca_counties_sf |>  st_crs()
 
 Plot the California counties using `geom_sf()`. Notice that we can update aesthetics just like we would for a regular ggplot object. Here, we update the color based on land area (and change the color gradient).
 
+```{r}
+ggplot(ca_counties_sf)+
+  geom_sf(aes(fill=land_km2))+
+  scale_fill_gradientn(colors=c("cornflowerblue","orchid","red4"))+
+  theme_void()
+```
+
+
 # Invasive red sesbania records (spatial points)
 
 ## Read in the sesbania data
@@ -77,7 +89,6 @@ The data exist in `data/red_sesbania`, and the shapefile is stored as `ds80_for_
 ```{r}
 sesbania_sf <- read_sf(here("data","red_sesbania","ds80_for_lab.gpkg")) |> 
   janitor::clean_names()
-
 ```
 
 ## The analysis:
@@ -87,6 +98,10 @@ Let's say we want to find the count of red sesbania observed locations in this d
 Write pseudocode to accomplish this.
 
 ### Pseudocode
+1. set the crs so that they match
+2. group by county and summarize by count with n()
+3. plot as layers: the points from the sesbania and the layer of counties
+
 
 ## Transform CRS so records match counties
 
@@ -107,6 +122,7 @@ sesbania_3857_sf |>  st_crs()
 Cool, now they have the same CRS.
 
 ### Plot them together!
+
 
 ## Spatial join
 
@@ -137,8 +153,7 @@ Use the CA polygons`sf` object with the CA polygons to summarize the total numbe
 ```{r}
 sesb_counts_sf <- ca_sesb_sf |> 
   group_by(county) |> 
-  summarize(n_records = XXXXX )
-
+  summarize(n_records = sum(!is.na(id)))
 ```
 
 Then we can plot a choropleth using the number of records for red sesbania as the fill color (instead of what we used previously, land area):
@@ -156,6 +171,22 @@ ggplot(data = sesb_counts_sf) +
 Now, on your own let's practice our spatial data wrangling!
 
 Only plot the county with the greatest number of red sesbania records, and make a map of those locations.
+
+```{r}
+solano <- sesb_counties_sf %>% 
+  filter(county == "Solano")
+
+solano_shape <- ca_sesb_sf %>% 
+  filter(county == "Solano")
+
+ggplot()+
+  geom_sf(data = solano_shape,fill="green")+
+  geom_sf(data = solano,color = "blue")+
+  theme_void()
+
+
+```
+
 
 Hint: It's okay to break the steps apart, you don't need to do them all in one step (in fact it's probably preferred you don't).
 
